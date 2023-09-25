@@ -186,13 +186,13 @@ void app_main() {
     // main menu
     int sel=0;
     while(1) {
-        char *entries[]={"Graphics","Networking","Leds",
+        char *entries[]={"Block Game", "Graphics","Networking","Leds",
                         "Teapots","Bubble Game",
                         get_orientation()?"Landscape":"Portrait"};
         sel=demo_menu("Demo",sizeof(entries)/sizeof(char *),entries,sel);
         switch(sel) {
             case 0:
-                graphics_menu();
+                block_demo();
                 break;
             case 1:
                 network_menu();
@@ -208,6 +208,9 @@ void app_main() {
                 break;
             case 5:
                 set_orientation(1-get_orientation());
+                break;
+            case 6:
+                graphics_menu();
                 break;
         }
     }

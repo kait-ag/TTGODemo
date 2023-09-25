@@ -307,6 +307,8 @@ void bubble_demo() {
         ball.yvel-=2.0/16;
         ball.x+=ball.xvel*dt;
         ball.y-=ball.yvel*dt;
+
+        //If ball is out of bounds, keep in bounds
         if((ball.x)>(display_width-ball.w/2) || ball.x<ball.w/2) {
             ball.xvel=-ball.xvel;
             ball.x+=ball.xvel*dt;
@@ -315,7 +317,7 @@ void bubble_demo() {
             ball.yvel=-ball.yvel;
             ball.y-=ball.yvel*dt;
         }
-    
+
         if((ball.y+ball.h/2)>bat.y && (ball.x>bat.x) && (ball.x<bat.x+bat.w) && (ball.y-ball.h/2)<bat.y) {
             ball.yvel=-ball.yvel*1.03;
             ball.x-=-(ball.y-(bat.y-ball.h/2))*ball.xvel/ball.yvel;
@@ -644,4 +646,196 @@ void led_circles(void) {
         if(delay<0) delay=0;
         showfps();
     }
+}
+
+typedef struct blockStruct {
+    float x;
+    float y;
+    int w;
+    int h;
+    float xvel;
+    float yvel;
+    uint16_t colour;
+} blockStruct;
+
+
+typedef struct obstacleStruct {
+    float x;
+    float y;
+    int w;
+    int h;
+    int colour;
+} obstacleStruct;
+
+typedef struct Node{ //Node for linked list
+    obstacleStruct obstacle;
+    struct Node* next;
+} Node;
+
+#define NO_OBSTACLES 10.
+
+void block_demo(){
+
+    int score=0;
+    float dt;
+    float speed = 0.3;
+
+    set_orientation(PORTRAIT);
+    setFont(FONT_UBUNTU16);
+
+    blockStruct block; //
+    block.colour = rgbToColour(138,43,226);
+    block.x=display_width/2-10;
+    block.y=display_height-20;
+    block.w=20;
+    block.h=5;
+
+    obstacleStruct obstacle; //obj for the obstacle 
+    obstacle.colour = rgbToColour(255,0,0);
+    obstacle.x = rand()%display_width; //creates a random start point on x axis. This will not change during course of the game
+    obstacle.y = -20; //starts off out of screen??
+    obstacle.w = 5;
+    obstacle.h = 20;
+
+    //Adding first obstacle into the linked list
+    Node* head = (Node*) malloc(sizeof(Node));
+    head->obstacle = obstacle;
+    head->next = NULL;
+
+    while(get_input()!=LEFT_DOWN){
+        cls(rgbToColour(0,0,0));
+        static char introMssg[256] = "Game objective:\n\nSurvive falling\nobstacles\nfor as long as\npossible!\n\n" 
+        "Use the buttons\nto move L + R.\n\n"
+        "Press the L button\nto start";
+        setFontColour(255,255,255);
+        setFont(FONT_UBUNTU16);
+        gprintf(introMssg);
+        flip_frame();
+    }
+        
+
+    //GAME STARTS IN 
+    // while(1){
+    //     for (int i = 3 ; i >= 0 ; i--){
+    //         if(i == 0) break;
+    //         cls(rgbToColour(0,0,0));
+    //         setFontColour(255,0,0);
+    //         static char countDown[256];
+    //         snprintf(countDown,64,"%d",i);
+    //         print_xy(countDown, CENTER, CENTER);
+    //         vTaskDelay(80);
+    //         flip_frame();
+    //     }
+    //     break;
+    // }
+
+    bool generateObstacle = true;
+    uint64_t last_time=esp_timer_get_time();
+    uint64_t last_ob_generation = esp_timer_get_time();
+    while(1){
+        cls(rgbToColour(0,0,0));
+        draw_rectangle(block.x, block.y, block.w, block.h, block.colour);
+        //draw_rectangle(obstacle.x, obstacle.y, obstacle.w, obstacle.h, obstacle.colour);
+
+        setFontColour(0,255,0);
+        gprintf("Score: %d\n", score);
+        uint64_t time = esp_timer_get_time();
+        dt=(time-last_time)/10000.0;
+        last_time = time;
+        //flip_frame();
+
+        //Generating the obstacles
+        time = esp_timer_get_time();
+        int nextObGen = 200;
+        //creates new obstacles randomly
+
+        if((generateObstacle && ((time - last_ob_generation)/10000 >= nextObGen))){ //time between 1 + 5 seconds
+            obstacleStruct newOb; //obj for the obstacle 
+            newOb.colour = rgbToColour(255,0,0);
+            newOb.x = rand()%display_width; //creates a random start point on x axis. This will not change during course of the game
+            newOb.y = -20; //starts off out of screen??
+            newOb.w = 5;
+            newOb.h = 20;
+
+            //Add new obstacle to linked list
+            Node* nextOb = (Node*) malloc(sizeof(Node));
+            nextOb->obstacle = newOb;
+            nextOb->next = head;
+            head = nextOb;
+
+            last_ob_generation = time;
+        }
+
+     //
+        Node * temp = head;
+
+        while(temp != NULL){
+
+            obstacleStruct obChecking = temp->obstacle;
+            draw_rectangle(obChecking.x, obChecking.y, obChecking.w, obChecking.h, obChecking.colour);
+
+            //Check for collisions with block. If collided break.
+            if(block.y < obChecking.y+obChecking.h && block.y+block.h > obChecking.y && block.x <obChecking.x+obChecking.w && block.x+block.w > obChecking.x){
+                //break;
+                goto exitBoth;
+            }
+
+            //Check if obstacle is past block. If so add score and put back up to the top
+            if(obChecking.y > display_height){ //if y ob point is greater than block y point add score
+                    score+=100;
+                    temp->obstacle.x = rand()%display_width;
+                    temp->obstacle.y = -20;
+                    speed += 0.01;
+                    generateObstacle = false;
+            }
+            
+            temp->obstacle.y += speed*dt;
+            temp = temp->next;
+            //flip_frame();
+        }
+        free(temp);
+
+        //Setting up buttons.
+        int keys[2]={1,1};
+        key_type key=get_input();
+
+        switch(key) {
+            case LEFT_DOWN: keys[0]=0;break;
+            case LEFT_UP: keys[0]=1;break;
+            case RIGHT_DOWN: keys[1]=0;break;
+            case RIGHT_UP: keys[1]=1;break;
+            case NO_KEY: break;
+        }
+
+        if(keys[0]==0) {
+            block.x-=7*dt;
+            if(block.x<0) block.x=0;
+        }
+        if(keys[1]==0) {
+            block.x+=7*dt;
+            if(block.x>display_width-block.w-1) block.x=(display_width-1-20);
+        }
+
+        flip_frame();
+        //showfps();
+    }
+
+    exitBoth: //label
+    
+    //END OF GAME. PULL UP SCORE
+    cls(rgbToColour(255,0,0));
+
+    setFont(FONT_DEJAVU18);
+    setFontColour(0,0,0);
+    print_xy("GAME OVER", CENTER, CENTER);
+    static char score_str[256];
+    snprintf(score_str,64,"Score = %d",score);
+    print_xy(score_str,CENTER, LASTY+15);
+    flip_frame();
+
+    vTaskDelay(500/portTICK_PERIOD_MS);
+    //while(get_input());
+    while(get_input()!=RIGHT_DOWN)
+        vTaskDelay(1);
+
 }
