@@ -20,6 +20,7 @@ void led_circles(void);
 void led_numbers(void);
 void led_cube(void);
 void block_demo();
+void weather_demo();
 
 #define ARRAY_LENGTH(array) (sizeof((array))/sizeof((array)[0]))
 

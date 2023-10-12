@@ -186,13 +186,14 @@ void app_main() {
     // main menu
     int sel=0;
     while(1) {
-        char *entries[]={"Block Game", "Graphics","Networking","Leds",
+        char *entries[]={"Weather - A3", "Graphics","Networking","Leds",
                         "Teapots","Bubble Game",
                         get_orientation()?"Landscape":"Portrait"};
         sel=demo_menu("Demo",sizeof(entries)/sizeof(char *),entries,sel);
         switch(sel) {
             case 0:
-                block_demo();
+                //block_demo();
+                weather_demo();
                 break;
             case 1:
                 network_menu();

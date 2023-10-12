@@ -832,3 +832,39 @@ void block_demo(){
         vTaskDelay(1);
 
 }
+
+void weather_demo(){
+    //DO SOMETHING THAT GETS WEATHER AND DISPLAYS IT!
+    wifi_connect(1); //connect to wifi
+
+    //Get current time
+    time_t time_now;
+    struct tm *tm_info;
+    int sntp_status=0;
+
+    do{
+        cls(0);
+        setFont(FONT_DEJAVU18);
+        setFontColour(0,0,0);
+        draw_rectangle(3,0,display_width,18,rgbToColour(220,220,0));
+
+        if(xEventGroupGetBits(network_event_group) & CONNECTED_BIT) {
+            if(sntp_status==0) {
+                esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+                esp_sntp_setservername(0, "pool.ntp.org");
+                esp_sntp_init();
+                sntp_status=1;
+            }
+
+        time(&time_now);
+        tm_info = localtime(&time_now);
+        //Day in month / months since Jan / years since 1990
+        gprintf(" Date: %d/%d/%d ", tm_info->tm_mday, 
+            tm_info->tm_mon + 1, tm_info->tm_year + 1900);
+        }
+        flip_frame();
+
+    } while(get_input()!=RIGHT_DOWN); //NB currently exits when R button pressed
+
+}
+
