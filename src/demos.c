@@ -862,9 +862,17 @@ void weather_demo(){
         gprintf(" Date: %d/%d/%d ", tm_info->tm_mday, 
             tm_info->tm_mon + 1, tm_info->tm_year + 1900);
         }
+
+
+
+
+
+
         flip_frame();
 
     } while(get_input()!=RIGHT_DOWN); //NB currently exits when R button pressed
 
 }
+
+
 

@@ -221,6 +221,47 @@ void web_client(void) {
     while(get_input()!=RIGHT_DOWN) vTaskDelay(100);
 }
 
+//ORIGINAL CODE FROM PROVIDED TTGODEMO
+// void web_task(void *pvParameters) {
+//     esp_http_client_config_t config = {
+//         .url = "http://www.trafficnz.info/camera/819.jpg", // if this is broken try 10.jpg, 20.jpg or 818.jpg
+//         .event_handler = http_event_handler,
+//     };
+//     esp_http_client_handle_t client = esp_http_client_init(&config);
+//     esp_err_t err = esp_http_client_perform(client);
+//     if (err == ESP_OK) {
+//         ESP_LOGI(TAG, "Status = %d, content_length = %lld",
+//            esp_http_client_get_status_code(client),
+//            esp_http_client_get_content_length(client));
+//     } else {
+//         int s=-2;
+//         xQueueSend(imageQueue, &s, portMAX_DELAY);
+//     }
+//     esp_http_client_close(client);
+//     esp_http_client_cleanup(client);
+//     vTaskDelete(NULL);
+// }
+
+// void web_client(void) {
+//     wifi_connect(1);
+//     if(imageQueue==NULL) imageQueue=xQueueCreate( 512, 4);
+//     TaskHandle_t wtask;
+//     cls(0);
+//     gprintf("Connected");
+//     flip_frame();
+//     JDEC decoder;
+//     char *work=malloc(3100);
+//     xTaskCreate(web_task,"wt",4096,NULL,1,&wtask);
+//     int r = jd_prepare(&decoder, jpg_read, work, 3100, NULL);
+//     cls(bg_col);
+//     if (r == JDR_OK)
+//         r = jd_decomp(&decoder, jpg_write, 1);
+//     free(work);
+//     flip_frame();
+//     while(get_input()!=RIGHT_DOWN) vTaskDelay(100);
+// }
+
+
 esp_mqtt_client_handle_t mqtt_client = NULL;
 
 void mqtt_connect(mqtt_callback_type callback) {
