@@ -23,6 +23,7 @@
 #include "rgb_led.h"
 #include "networking.h"
 #include <mqtt_client.h>
+#include <cJSON.h> 
 
 const char *tag="T Display";
 
@@ -836,11 +837,25 @@ void block_demo(){
 void weather_demo(){
     //DO SOMETHING THAT GETS WEATHER AND DISPLAYS IT!
     wifi_connect(1); //connect to wifi
+    //cls(0);
+    //flip_frame();
+    //setFontColour(0,0,0);
+    gprintf("SUP");
 
     //Get current time
     time_t time_now;
     struct tm *tm_info;
     int sntp_status=0;
+    const char *apiKey = "TNXBt2iRfLn71i51r6Qd5X";
+
+    //Set up data
+    cJSON *json = cJSON_CreateObject();
+    cJSON_AddStringToObject(json, "lon", "175.6097");
+    cJSON_AddStringToObject(json, "lat", "-40.3545");
+    cJSON_AddStringToObject(json, "variables", "air.temperature.at-2m");
+
+    //"{\"lat\": \"VALUE\", \"lon\": \'VALUE\" }"; //Lat lon, variables
+    char * jsonData = cJSON_Print(json);
 
     do{
         cls(0);
@@ -858,21 +873,27 @@ void weather_demo(){
 
         time(&time_now);
         tm_info = localtime(&time_now);
+        printf("TEST");
+
         //Day in month / months since Jan / years since 1990
         gprintf(" Date: %d/%d/%d ", tm_info->tm_mday, 
             tm_info->tm_mon + 1, tm_info->tm_year + 1900);
         }
-
-
-
-
-
-
         flip_frame();
+
+        vTaskDelay(500);
+
+        cJSON *parsedWeather = web_client(apiKey, jsonData);
+
+        cJSON *temp = cJSON_GetObjectItemCaseSensitive(parsedWeather, "air.temperature.at-2m");
+
+        if(cJSON_IsString(temp) && (temp->valuestring != NULL)){
+            gprintf("TESTING: %s", temp->valuestring);
+        }
+
+        // flip_frame();
 
     } while(get_input()!=RIGHT_DOWN); //NB currently exits when R button pressed
 
 }
-
-
 

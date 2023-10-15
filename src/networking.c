@@ -4,6 +4,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
 #include <freertos/task.h>
+#include "freertos/ringbuf.h"
 #include <driver/gpio.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,6 +31,7 @@
 #include "networking.h"
 #include "esp_http_client.h"
 #include "esp32/rom/tjpgd.h"
+#include "cJSON.h"
 
 EventGroupHandle_t network_event_group;
 char network_event[64];
@@ -143,19 +145,20 @@ void webserver(void) {
 }
 
 QueueHandle_t imageQueue=NULL;
+QueueHandle_t weatherQueue=NULL;
 
 esp_err_t http_event_handler(esp_http_client_event_t *evt) {
     ESP_LOGI(TAG, "http event %d",(evt->event_id));
-    if(evt->event_id==HTTP_EVENT_ON_DATA) {
+    if(evt->event_id==HTTP_EVENT_ON_DATA) { //Will run when data is received!
         char *data=(char *)(evt->data);
         for(int i=0;i<evt->data_len;i++) {
             int s=data[i];
-            xQueueSend(imageQueue, &s, portMAX_DELAY);
+            xQueueSend(weatherQueue, &s, portMAX_DELAY); //Sends the data to weatherQueue QueueHandle_t
         }
     }
     if(evt->event_id==HTTP_EVENT_ON_FINISH) {
         int s=-1;
-        xQueueSend(imageQueue, &s, portMAX_DELAY);
+        xQueueSend(weatherQueue, &s, portMAX_DELAY);
     }
     return ESP_OK;
 }
@@ -182,43 +185,87 @@ static UINT jpg_write(JDEC *decoder, void *bitmap, JRECT *rect) {
     return 1;
 }
 
+
+typedef struct{
+    const char *apiKey;
+    char *data;
+} weather_WebTaskParams;
+
 void web_task(void *pvParameters) {
+
+    // RingbufHandle_t ringBuffer;
+    // ringBuffer = xRingbufferCreate(1028, RINGBUF_TYPE_NOSPLIT);
+
+    weather_WebTaskParams *params = (weather_WebTaskParams *) pvParameters;
+
     esp_http_client_config_t config = {
-        .url = "http://www.trafficnz.info/camera/819.jpg", // if this is broken try 10.jpg, 20.jpg or 818.jpg
+        .url = "https://forecast-v2.metoceanapi.com/point/time",
         .event_handler = http_event_handler,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
+
+    esp_http_client_set_header(client, "x-api-key", params->apiKey); //Sets the api-key as the header as required by forecast 
+    esp_http_client_set_post_field(client, params->data, strlen(params->data));
+
     esp_err_t err = esp_http_client_perform(client);
     if (err == ESP_OK) {
         ESP_LOGI(TAG, "Status = %d, content_length = %lld",
            esp_http_client_get_status_code(client),
            esp_http_client_get_content_length(client));
+
+        //char *item = (char*)xRingbufferReceive(ringBuffer, &item_size, pdMS_TO_TICKS(1000));
     } else {
         int s=-2;
-        xQueueSend(imageQueue, &s, portMAX_DELAY);
+        xQueueSend(weatherQueue, &s, portMAX_DELAY);
     }
+    //gprintf("HELLO");
+    //flip_frame();
     esp_http_client_close(client);
     esp_http_client_cleanup(client);
-    vTaskDelete(NULL);
+    //vTaskDelete(NULL);
 }
 
-void web_client(void) {
-    wifi_connect(1);
-    if(imageQueue==NULL) imageQueue=xQueueCreate( 512, 4);
+
+cJSON* web_client(const char* apiKey, char* data) {
+    //wifi_connect(1);
+    if(weatherQueue==NULL) weatherQueue=xQueueCreate(512, 4);
     TaskHandle_t wtask;
     cls(0);
+    setFontColour(255,0,0);
     gprintf("Connected");
     flip_frame();
-    JDEC decoder;
+    //JDEC decoder;
     char *work=malloc(3100);
-    xTaskCreate(web_task,"wt",4096,NULL,1,&wtask);
-    int r = jd_prepare(&decoder, jpg_read, work, 3100, NULL);
-    cls(bg_col);
-    if (r == JDR_OK)
-        r = jd_decomp(&decoder, jpg_write, 1);
+
+    //Create pointer to webTask params
+    weather_WebTaskParams webTaskParams;
+    webTaskParams.apiKey = apiKey;
+    webTaskParams.data = data;
+
+    xTaskCreate(web_task,"wt",4096,&webTaskParams,1,&wtask);
+
+    //TODO READ WEATHER QUEUE
+    char buffer[512];
+    int index = 0;
+    char charData;
+
+    while(1){
+        if(xQueueReceive(weatherQueue, &charData, portMAX_DELAY == pdPASS)){
+            buffer[index++] = charData;
+        }
+    }   
+
+    cJSON *parsedJSON = cJSON_Parse(buffer);
+
+    // int r = jd_prepare(&decoder, jpg_read, work, 3100, NULL);
+    // cls(bg_col);
+    // if (r == JDR_OK)
+    //     r = jd_decomp(&decoder, jpg_write, 1);
     free(work);
-    flip_frame();
+    // flip_frame();
     while(get_input()!=RIGHT_DOWN) vTaskDelay(100);
+
+    return parsedJSON;
 }
 
 //ORIGINAL CODE FROM PROVIDED TTGODEMO

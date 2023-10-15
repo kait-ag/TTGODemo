@@ -152,7 +152,7 @@ void network_menu() {
                 webserver();
                 break;
             case 4:
-                web_client();
+                //web_client();
                 break;
             case 5:
                 return;

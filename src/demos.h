@@ -1,3 +1,4 @@
+#include "cJSON.h"
 
 void life_demo();
 void spaceship_demo();
@@ -11,7 +12,7 @@ int wifi_connected();
 void wifi_disconnect();
 void wifi_ap();
 void webserver();
-void web_client();
+cJSON* web_client(const char *apiKey, char *data);
 void mqtt();
 void time_demo();
 void boids_demo();
